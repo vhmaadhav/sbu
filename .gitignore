@@ -1,2 +1,11 @@
-C:\Users\maadh\Documents\ChatGPT\AI SBU\sbu\glean
-C:\Users\maadh\Documents\ChatGPT\AI SBU\sbu\sbu
+.env
+.env.docker
+.venv/
+__pycache__/
+*.pyc
+data/
+inbox/
+.DS_Store
+*.egg-info/
+deck/
+dist/

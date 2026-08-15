@@ -1,0 +1,80 @@
+name: study-buddy
+
+services:
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    init: true
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 8010
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-console}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-*}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-1000}
+      STUDY_BUDDY_MENUBAR: "false"
+      STUDY_BUDDY_TELEGRAM: ${STUDY_BUDDY_TELEGRAM:-false}
+      LMSTUDIO_BASE_URL: ${LMSTUDIO_BASE_URL:-http://host.docker.internal:1234/v1}
+      LMSTUDIO_API_KEY: ${LMSTUDIO_API_KEY:-lm-studio}
+      LMSTUDIO_MODEL: ${LMSTUDIO_MODEL:-qwen3.5-4b-mlx}
+      VISION_MODEL: ${VISION_MODEL:-qwen/qwen3-vl-4b}
+      RERANKER_ENABLED: ${RERANKER_ENABLED:-true}
+      RERANKER_MODEL: ${RERANKER_MODEL:-mlx-community/Qwen3-Reranker-0.6B-mxfp8}
+      RERANKER_CANDIDATE_K: ${RERANKER_CANDIDATE_K:-24}
+      RERANKER_MAX_CHARS: ${RERANKER_MAX_CHARS:-6000}
+      STT_MODEL: ${STT_MODEL:-moonshine/base}
+      EMBED_MODEL: ${EMBED_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      KOKORO_VOICE: ${KOKORO_VOICE:-af_heart}
+      DATA_DIR: /app/data
+      INBOX_DIR: /app/inbox
+      GOOGLE_CALENDAR_CLIENT_ID: ${GOOGLE_CALENDAR_CLIENT_ID:-}
+      GOOGLE_CALENDAR_CLIENT_SECRET: ${GOOGLE_CALENDAR_CLIENT_SECRET:-}
+      GOOGLE_CALENDAR_REDIRECT_URI: ${GOOGLE_CALENDAR_REDIRECT_URI:-http://localhost:8010/api/calendar/google/callback}
+      GOOGLE_CALENDAR_TIMEZONE: ${GOOGLE_CALENDAR_TIMEZONE:-Asia/Kolkata}
+      WEB_BASE_URL: ${WEB_BASE_URL:-http://localhost:3000}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ALLOWED_USER_IDS: ${TELEGRAM_ALLOWED_USER_IDS:-}
+      TELEGRAM_ALLOWED_CHAT_IDS: ${TELEGRAM_ALLOWED_CHAT_IDS:-}
+      TELEGRAM_ALLOW_ALL: ${TELEGRAM_ALLOW_ALL:-false}
+      TELEGRAM_MAX_UPLOAD_MB: ${TELEGRAM_MAX_UPLOAD_MB:-20}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - "${BACKEND_PUBLISHED_PORT:-8010}:8010"
+    volumes:
+      - backend_data:/app/data
+      - backend_inbox:/app/inbox
+      - model_cache:/home/studybuddy/.cache
+
+  web:
+    build:
+      context: ./web
+      args:
+        STUDY_BUDDY_API_URL: http://backend:8010
+    restart: unless-stopped
+    init: true
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${WEB_PUBLISHED_PORT:-3000}:3000"
+
+  android-build:
+    profiles: ["tools"]
+    build:
+      context: ./mobile
+      args:
+        STUDY_BUDDY_API_URL: ${ANDROID_API_URL:-http://10.0.2.2:8010}
+    volumes:
+      - ./dist/android:/output
+      - gradle_cache:/root/.gradle
+
+volumes:
+  backend_data:
+  backend_inbox:
+  model_cache:
+  gradle_cache:

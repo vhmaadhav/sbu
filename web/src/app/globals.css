@@ -1,0 +1,599 @@
+@import "tailwindcss";
+
+/* ── Axiom design tokens ───────────────────────────────────────────────
+   Dark is the default (:root). [data-theme="light"] overrides for light.
+   Legacy token names (--page/--ink/--muted/--brand/--panel-*) are kept as
+   aliases mapped onto the Axiom palette so pages not yet rebuilt in the new
+   language stay legible during the phased reskin. --accent is set by the
+   theme provider / pre-hydration script; the default here is teal.        */
+:root {
+  --accent: #5eead4;
+
+  /* Body/heading typeface. Swapped wholesale by the dyslexia-friendly
+     reading toggle; --font-mono is deliberately never swapped, since the
+     small uppercase labels and code blocks stay more legible in JetBrains. */
+  --font-body: var(--font-space-grotesk), sans-serif;
+  --reading-leading: 1.75;
+  --reading-tracking: 0em;
+  --reading-word-spacing: normal;
+  --reading-measure: none;
+
+  --bg: #070b11;
+  --panel: rgba(12, 18, 27, 0.55);
+  --panel2: rgba(18, 27, 41, 0.7);
+  --line: rgba(140, 175, 215, 0.14);
+  --line2: rgba(140, 175, 215, 0.28);
+  --text: #dce7f3;
+  --dim: #677c93;
+  --faint: #3d4d60;
+  --blur: blur(16px) saturate(1.4);
+  --g2: rgba(120, 190, 255, 0.16);
+  --grid-opacity: 0.35;
+
+  /* legacy aliases → Axiom */
+  --page: var(--bg);
+  --ink: var(--text);
+  --muted: var(--dim);
+  --brand: var(--accent);
+  --brand-dark: var(--accent);
+  --brand-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --panel-strong: var(--panel2);
+  --panel-muted: var(--panel2);
+  --chip-purple: color-mix(in srgb, var(--accent) 16%, transparent);
+  --chip-blue: color-mix(in srgb, #7dd3fc 16%, transparent);
+  --chip-green: color-mix(in srgb, #5eead4 16%, transparent);
+  --chip-orange: color-mix(in srgb, #fda4af 16%, transparent);
+  /* Foreground form of the chip-orange rose. The --chip-* tokens are already
+     ~16% transparent because they are chip *backgrounds*; strokes, text, and
+     bar fills that mark weak or at-risk states need the solid hue. */
+  --warn: #fda4af;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 40px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 24px 80px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="light"] {
+  --bg: #eef2f7;
+  --panel: rgba(255, 255, 255, 0.6);
+  --panel2: rgba(233, 238, 245, 0.72);
+  --line: rgba(30, 60, 95, 0.14);
+  --line2: rgba(30, 60, 95, 0.28);
+  --text: #17222f;
+  --dim: #5b6c7f;
+  --faint: #9fb0c2;
+  --blur: blur(16px) saturate(1.3);
+  --g2: rgba(90, 150, 230, 0.14);
+  /* Same rose, deepened so it still reads as a warning against a light page. */
+  --warn: #be3455;
+
+  --shadow-card: 0 1px 2px rgba(24, 24, 33, 0.05), 0 10px 35px rgba(24, 24, 33, 0.08);
+  --shadow-float: 0 24px 70px rgba(32, 30, 60, 0.18);
+}
+
+/* ── Dyslexia-friendly reading ─────────────────────────────────────────
+   Set by ThemeProvider (and the pre-hydration script) on <html>. Swaps in
+   OpenDyslexic and opens up the spacing: the spacing changes carry more of
+   the readability benefit than the typeface does, so they travel together.
+   UI chrome gets a gentler version of the same treatment so fixed-height
+   buttons and nav rows don't blow out.                                    */
+[data-dyslexic="true"] {
+  --font-body: "OpenDyslexic", var(--font-space-grotesk), sans-serif;
+  --reading-leading: 1.8;
+  --reading-tracking: 0.05em;
+  --reading-word-spacing: 0.16em;
+  --reading-measure: 66ch;
+}
+
+[data-dyslexic="true"] body {
+  line-height: 1.6;
+  letter-spacing: 0.03em;
+  word-spacing: 0.1em;
+}
+
+/* Long-form reading surfaces get the full treatment, including a capped
+   measure — long lines are where tracking is most often lost. */
+[data-dyslexic="true"] :is(.study-note, .axscreen) :is(p, li, blockquote, dd) {
+  line-height: var(--reading-leading);
+  letter-spacing: var(--reading-tracking);
+  word-spacing: var(--reading-word-spacing);
+  max-width: var(--reading-measure);
+}
+
+/* OpenDyslexic's weighted bottoms need a little more room between lines
+   than Space Grotesk did at the same size. */
+[data-dyslexic="true"] :is(h1, h2, h3) {
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+@theme inline {
+  --font-sans: var(--font-body);
+  --font-display: var(--font-body);
+  --font-mono: var(--font-jetbrains-mono);
+  /* Axiom colors */
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel2: var(--panel2);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-text: var(--text);
+  --color-dim: var(--dim);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  /* legacy aliases */
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-soft: var(--brand-soft);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-page: var(--page);
+  --color-panel-strong: var(--panel-strong);
+  --color-panel-muted: var(--panel-muted);
+  --color-chip-purple: var(--chip-purple);
+  --color-chip-blue: var(--chip-blue);
+  --color-chip-green: var(--chip-green);
+  --color-chip-orange: var(--chip-orange);
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  background: var(--bg);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  text-rendering: optimizeLegibility;
+}
+
+a { color: var(--accent); }
+a:hover { color: #99f6e4; }
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes screenIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes blobDrift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(40px, -30px); } }
+.axscreen { animation: screenIn 0.4s cubic-bezier(0.2, 0.7, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .axscreen, [data-blob] { animation: none !important; }
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-body);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input,
+textarea,
+select {
+  background: var(--panel);
+  color: var(--ink);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 78%, transparent);
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand) 24%, transparent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--line2);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer components {
+  .surface {
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    background: var(--panel);
+    box-shadow: var(--shadow-card);
+  }
+
+  .surface-interactive:hover {
+    border-color: color-mix(in srgb, var(--brand) 28%, var(--line));
+    box-shadow: 0 16px 42px color-mix(in srgb, var(--brand) 8%, transparent);
+    transform: translateY(-2px);
+  }
+
+  .button-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.8rem;
+    background: var(--brand);
+    padding: 0.65rem 1rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 650;
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--brand) 24%, transparent);
+  }
+
+  .button-primary:hover:not(:disabled) {
+    background: var(--brand-dark);
+    box-shadow: 0 12px 28px color-mix(in srgb, var(--brand) 32%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .button-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 0.8rem;
+    background: var(--panel);
+    padding: 0.6rem 0.9rem;
+    color: var(--ink);
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .button-secondary:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--brand) 28%, var(--line));
+    background: var(--panel-muted);
+  }
+
+  .field {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 0.8rem;
+    background: var(--panel);
+    padding: 0.65rem 0.8rem;
+    font-size: 0.875rem;
+    outline: none;
+  }
+
+  .field:focus {
+    border-color: color-mix(in srgb, var(--brand) 58%, var(--line));
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 10%, transparent);
+  }
+
+  .status-dot {
+    display: inline-block;
+    height: 0.5rem;
+    width: 0.5rem;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 0 4px color-mix(in srgb, #22c55e 14%, transparent);
+  }
+
+  .study-note {
+    color: var(--ink);
+    font-size: 0.95rem;
+    line-height: 1.75;
+  }
+
+  .study-note > :first-child { margin-top: 0; }
+  .study-note > :last-child { margin-bottom: 0; }
+
+  .study-note h1 {
+    margin: 0 0 1.5rem;
+    color: var(--ink);
+    font-size: clamp(1.45rem, 3vw, 1.9rem);
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+  }
+
+  .study-note h2 {
+    margin: 2.25rem 0 0.85rem;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.55rem;
+    color: var(--ink);
+    font-size: 1.15rem;
+    font-weight: 720;
+    letter-spacing: -0.015em;
+    line-height: 1.35;
+  }
+
+  .study-note h3 {
+    margin: 1.55rem 0 0.65rem;
+    color: color-mix(in srgb, var(--ink) 90%, var(--brand));
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .study-note p { margin: 0.75rem 0; }
+  .study-note strong,
+  .study-note-highlight {
+    padding: 0.05em 0.18em;
+    border-radius: 0.2em;
+    color: inherit;
+    font-weight: 720;
+    background: color-mix(in srgb, var(--brand) 28%, transparent);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+  .study-note a {
+    color: var(--brand);
+    font-weight: 620;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--brand) 36%, transparent);
+    text-underline-offset: 0.18em;
+  }
+  .study-note ul,
+  .study-note ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+  .study-note li { margin: 0.35rem 0; padding-left: 0.2rem; }
+  .study-note li::marker { color: var(--brand); font-weight: 700; }
+  .study-note li > ul,
+  .study-note li > ol { margin: 0.3rem 0; }
+
+  .study-note blockquote {
+    margin: 1.25rem 0;
+    border-left: 3px solid var(--brand);
+    border-radius: 0 0.75rem 0.75rem 0;
+    background: var(--brand-soft);
+    padding: 0.7rem 1rem;
+    color: color-mix(in srgb, var(--ink) 82%, var(--muted));
+  }
+
+  .study-note code:not(pre code) {
+    border: 1px solid var(--line);
+    border-radius: 0.35rem;
+    background: var(--panel-muted);
+    padding: 0.08rem 0.32rem;
+    font-size: 0.88em;
+  }
+
+  .study-note pre {
+    margin: 1rem 0;
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 0.8rem;
+    background: var(--panel-strong);
+    padding: 1rem;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  .study-note-table {
+    margin: 1.25rem 0;
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 0.85rem;
+    background: var(--panel);
+  }
+
+  .study-note table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .study-note th {
+    background: var(--panel-muted);
+    color: var(--ink);
+    font-weight: 700;
+    text-align: left;
+  }
+  .study-note th,
+  .study-note td { border-bottom: 1px solid var(--line); padding: 0.7rem 0.85rem; vertical-align: top; }
+  .study-note tr:last-child td { border-bottom: 0; }
+  .study-note tbody tr:nth-child(even) { background: color-mix(in srgb, var(--panel-muted) 55%, transparent); }
+  .study-note hr { margin: 2rem 0; border: 0; border-top: 1px solid var(--line); }
+  .study-note img { margin: 1.25rem auto; border: 1px solid var(--line); background: var(--panel); }
+
+  .mermaid-note {
+    margin: 1.4rem 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 0.9rem;
+    background: color-mix(in srgb, var(--panel) 92%, var(--brand) 8%);
+  }
+
+  .mermaid-canvas {
+    overflow-x: auto;
+    padding: 1.25rem;
+    text-align: center;
+  }
+
+  .mermaid-canvas svg {
+    width: 100%;
+    min-width: 520px;
+    max-height: 640px;
+  }
+
+  .mermaid-note details {
+    border-top: 1px solid var(--line);
+  }
+
+  .mermaid-note summary {
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    color: var(--muted);
+    font-family: var(--font-jetbrains-mono), monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  }
+
+  .study-note .mermaid-note pre {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .mermaid-loading,
+  .mermaid-error {
+    margin: 0;
+    padding: 1rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+
+  .mermaid-error {
+    color: #b94a48;
+  }
+
+  .note-loading {
+    display: grid;
+    gap: 0.8rem;
+    padding: 0.25rem 0;
+  }
+
+  .note-loading span {
+    display: block;
+    height: 0.8rem;
+    width: min(100%, 42rem);
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--panel-muted), color-mix(in srgb, var(--brand) 10%, var(--panel)), var(--panel-muted));
+    background-size: 220% 100%;
+    animation: note-shimmer 1.35s ease-in-out infinite;
+  }
+
+  .note-loading span:nth-child(2) { width: min(82%, 34rem); }
+  .note-loading span:nth-child(3) { width: min(61%, 25rem); }
+
+  .page-enter {
+    animation: page-enter 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes soft-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.96); }
+  50% { opacity: 0.9; transform: scale(1.04); }
+}
+
+/* ── Adaptive learning path ────────────────────────────────────────────
+   Chart and list motion. Everything animates transform, opacity, or
+   stroke-dashoffset only, so nothing triggers layout. Marks that draw
+   themselves carry pathLength="1", which makes one dash rule fit any path
+   length. The global prefers-reduced-motion rule below collapses all of it. */
+@keyframes chart-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes node-in {
+  from { opacity: 0; transform: scale(0.82); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.chart-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: chart-draw 900ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.bar-grow {
+  transform-origin: left center;
+  animation: bar-grow 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.node-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: node-in 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.reveal {
+  animation: reveal 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Rows in the gap and misconception lists: fade up on mount, tint on hover. */
+.gap-row {
+  animation: reveal 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: background 0.18s;
+}
+
+.gap-row:hover {
+  background: var(--panel2) !important;
+}
+
+/* Answer options. The chosen state is applied inline; this only carries hover
+   and the shake that marks a wrong answer. */
+.quiz-option {
+  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+}
+
+.quiz-option:not(:disabled):hover {
+  border-color: var(--accent) !important;
+  transform: translateX(3px);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.quiz-wrong { animation: shake 320ms ease-in-out; }
+
+@keyframes note-shimmer {
+  from { background-position: 110% 0; }
+  to { background-position: -110% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
