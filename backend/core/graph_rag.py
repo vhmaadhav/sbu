@@ -11,6 +11,18 @@ _ROLE_STRENGTH = {"semantic_seed": 0, "dependent": 1, "prerequisite": 2, "target
 _CONTEXT_ORDER = {"prerequisite": 0, "target": 1, "dependent": 2, "semantic_seed": 3}
 
 
+def _evidence_reason(hit: dict) -> str:
+    role = hit.get("graph_role", "semantic_seed")
+    concept = hit.get("graph_concept_name")
+    if role == "prerequisite":
+        return f"Supports the prerequisite {concept}."
+    if role == "target":
+        return f"Directly supports the target concept {concept}."
+    if role == "dependent":
+        return f"Shows where {concept} is used next."
+    return "Matched the student's question semantically."
+
+
 def neighborhood(concept_id: int) -> dict:
     """Return the target and its weakest immediate graph neighbors."""
     target = concepts.get_concept(concept_id)
@@ -130,9 +142,11 @@ def retrieve(concept_id: int, question: str, top_k: int = 8) -> dict:
         "evidence_reasons": [
             {
                 "chunk_id": int(hit["chunk_id"]),
+                "label": hit["source_label"],
                 "source": hit["source_label"],
                 "role": hit.get("graph_role", "semantic_seed"),
                 "concept": hit.get("graph_concept_name"),
+                "reason": _evidence_reason(hit),
             }
             for hit in organized
         ],

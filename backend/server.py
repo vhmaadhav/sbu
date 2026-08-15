@@ -74,9 +74,9 @@ async def lifespan(application: FastAPI):
 
 
 app = FastAPI(
-    title="Study Buddy API",
+    title="Axiom Trace API",
     description=(
-        "The stable, shared HTTP contract for Study Buddy web and mobile clients."
+        "Local-first learning evidence, knowledge tracing, and graph-guided retrieval."
     ),
     version=__version__,
     lifespan=lifespan,

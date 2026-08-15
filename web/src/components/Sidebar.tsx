@@ -9,30 +9,27 @@ import MonoLabel from "@/components/ui/MonoLabel";
 
 const GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
   {
-    label: "Workspace",
-    items: [
-      { href: "/", label: "Overview" },
-      { href: "/notes", label: "Notes" },
-      { href: "/files", label: "Library" },
-      { href: "/search", label: "Ask my notes" },
-    ],
-  },
-  {
     label: "Learn",
     items: [
       { href: "/learn", label: "Adaptive path" },
-      { href: "/tasks", label: "Tasks" },
-      { href: "/calendar", label: "Calendar" },
-      { href: "/flashcards", label: "Flashcards" },
-      { href: "/question-papers", label: "Question papers" },
-      { href: "/audiobooks", label: "Audiobooks" },
-      { href: "/handwriting", label: "Handwriting" },
-      { href: "/video", label: "Video review" },
+      { href: "/learn/gaps", label: "Knowledge gaps" },
+      { href: "/learn/map", label: "Concept map" },
+      { href: "/learn/report", label: "Progress report" },
+    ],
+  },
+  {
+    label: "Evidence",
+    items: [
+      { href: "/notes", label: "Notes" },
+      { href: "/files", label: "Source library" },
+      { href: "/search", label: "Ask all evidence" },
+      { href: "/", label: "System overview" },
     ],
   },
 ];
 
 function isActive(pathname: string, href: string): boolean {
+  if (href === "/learn") return pathname === href;
   return pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 }
 
@@ -123,7 +120,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
         </div>
         <div>
           <div style={{ fontWeight: 600, letterSpacing: "0.14em", fontSize: 15 }}>AXIOM</div>
-          <MonoLabel size={9} spacing="0.22em">STUDY SYSTEM</MonoLabel>
+          <MonoLabel size={9} spacing="0.18em">GRAPH-GUIDED LEARNING</MonoLabel>
         </div>
       </div>
 
@@ -151,7 +148,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
       {/* Footer: settings, theme toggle, user chip */}
       <div style={{ padding: "16px 18px", borderTop: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: 14 }}>
         <NavRow
-          num="12"
+          num="09"
           label="Settings"
           href="/settings"
           active={isActive(pathname, "/settings")}
@@ -202,9 +199,9 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
               color: "var(--dim)",
             }}
           >
-            SB
+            AT
           </div>
-          <div style={{ fontSize: 12, color: "var(--dim)" }}>Study Buddy</div>
+          <div style={{ fontSize: 12, color: "var(--dim)" }}>Axiom Trace</div>
         </div>
       </div>
     </>

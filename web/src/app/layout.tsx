@@ -20,8 +20,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Study Buddy", template: "%s · Study Buddy" },
-  description: "A private, local-first workspace for notes, lectures, and focused study.",
+  title: { default: "Axiom Trace", template: "%s · Axiom Trace" },
+  description:
+    "A private knowledge-graph-guided RAG system for personalized student knowledge tracing.",
 };
 
 // Applies stored theme/accent/grid/reading preferences to <html> before paint

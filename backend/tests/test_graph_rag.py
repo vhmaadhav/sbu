@@ -91,6 +91,8 @@ class GraphGuidedRetrievalTests(unittest.TestCase):
         self.assertEqual(trace["mode"], "graph_guided")
         self.assertEqual(trace["seed_concept"]["name"], "Stacks")
         self.assertEqual(len(trace["evidence_reasons"]), 3)
+        self.assertEqual(trace["evidence_reasons"][0]["label"], "Arrays note")
+        self.assertIn("prerequisite Arrays", trace["evidence_reasons"][0]["reason"])
 
 
 if __name__ == "__main__":

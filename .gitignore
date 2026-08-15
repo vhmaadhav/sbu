@@ -9,3 +9,4 @@ inbox/
 *.egg-info/
 deck/
 dist/
+.run/

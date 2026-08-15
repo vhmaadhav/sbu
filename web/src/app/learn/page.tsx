@@ -2,17 +2,31 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Compass, LoaderCircle, RotateCcw, Target } from "lucide-react";
+import { Compass, Eye, Link2, LoaderCircle, RotateCcw, Target } from "lucide-react";
 import LearnNav from "@/components/learn/LearnNav";
 import MasteryCurve from "@/components/charts/MasteryCurve";
 import { GlowButton, MonoLabel, Panel, SectionHeader, StatTile } from "@/components/ui";
-import { learn, type GoalResponse, type HistoryPoint } from "@/lib/learn";
+import {
+  learn,
+  type GoalResponse,
+  type HistoryPoint,
+  type LearningEvidence,
+} from "@/lib/learn";
 import { getJSON, type Subject } from "@/lib/api";
+
+function sourceHost(sourceUri: string): string {
+  try {
+    return new URL(sourceUri).hostname.replace(/^www\./, "");
+  } catch {
+    return "browser source";
+  }
+}
 
 export default function LearnPage() {
   const router = useRouter();
   const [state, setState] = useState<GoalResponse | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [evidence, setEvidence] = useState<LearningEvidence[]>([]);
   // The map is built from your own notes, so your folders are the only
   // suggestions that can actually produce one.
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -20,21 +34,23 @@ export default function LearnPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const refresh = useCallback(
-    () =>
-      learn
-        .goal()
-        .then((next) => {
-          setState(next);
-          if (next.goal?.status !== "ready") return;
-          return learn.history().then((points) => setHistory(points.points));
-        })
-        .catch(() => setError("Couldn't reach the Study Buddy API.")),
-    [],
-  );
+  const refresh = useCallback(async () => {
+    try {
+      const [next, recentEvidence] = await Promise.all([learn.goal(), learn.evidence(6)]);
+      setState(next);
+      setEvidence(recentEvidence.evidence);
+      if (next.goal?.status === "ready") {
+        const points = await learn.history();
+        setHistory(points.points);
+      }
+    } catch {
+      setError("Couldn't reach the Axiom Trace API.");
+    }
+  }, []);
 
   useEffect(() => {
-    refresh();
+    const timer = window.setTimeout(() => void refresh(), 0);
+    return () => window.clearTimeout(timer);
   }, [refresh]);
 
   useEffect(() => {
@@ -89,6 +105,19 @@ export default function LearnPage() {
     setBusy(false);
   }
 
+  async function linkEvidence() {
+    setBusy(true);
+    setError("");
+    try {
+      await learn.rebindEvidence();
+      await refresh();
+    } catch {
+      setError("Couldn't link the latest browser evidence to this concept graph.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const goal = state?.goal ?? null;
   const summary = state?.summary ?? null;
 
@@ -110,9 +139,9 @@ export default function LearnPage() {
             What are you studying for?
           </h1>
           <p style={{ fontSize: 14, color: "var(--dim)", maxWidth: 620, lineHeight: 1.65 }}>
-            Study Buddy reads your own notes and maps what they teach into a prerequisite graph
-            of concepts. Nothing outside your notes is added, so every question and explanation
-            comes from material you already have. Name a folder to map just that folder.
+            Axiom Trace turns your notes and focused browser reading into a prerequisite graph,
+            then tracks what you know with Bayesian mastery updates. Every explanation stays
+            grounded in evidence you can inspect. Name a folder to map just that folder.
           </p>
 
           <div style={{ display: "flex", gap: 10, marginTop: 26, flexWrap: "wrap" }}>
@@ -259,6 +288,69 @@ export default function LearnPage() {
             <StatTile label="Weak" value={summary.weak} sub="below 60% mastery" />
             <StatTile label="Untested" value={summary.untested} sub="no attempts yet" />
           </div>
+
+          <Panel>
+            <SectionHeader
+              title="Learning evidence"
+              action={
+                <GlowButton
+                  variant="ghost"
+                  onClick={() => void linkEvidence()}
+                  disabled={busy}
+                  style={{ padding: "6px 10px", fontSize: 9 }}
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  Link new evidence
+                </GlowButton>
+              }
+            />
+            {evidence.length ? (
+              <div>
+                {evidence.map((row) => (
+                  <div
+                    key={row.event_id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "minmax(0, 1fr) auto",
+                      gap: 18,
+                      alignItems: "center",
+                      padding: "13px 22px",
+                      borderBottom: "1px solid var(--line)",
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {row.processed_title || row.title}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--dim)", marginTop: 4 }}>
+                        {sourceHost(row.source_uri)} · {Math.max(1, Math.round(row.dwell_ms / 1000))}s focused
+                      </div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <MonoLabel size={8} style={{ color: row.status === "done" ? "var(--accent)" : "var(--dim)" }}>
+                        {row.status}
+                      </MonoLabel>
+                      <div style={{ fontSize: 10, color: "var(--faint)", marginTop: 4 }}>
+                        {row.linked_concepts} concept links
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: "24px 22px", color: "var(--dim)", fontSize: 13 }}>
+                <Eye className="h-4 w-4" style={{ display: "inline", marginRight: 8 }} />
+                Focus on a page for 30 seconds with the Axiom Trace extension to add evidence.
+              </div>
+            )}
+          </Panel>
 
           <Panel>
             <SectionHeader

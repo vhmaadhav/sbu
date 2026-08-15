@@ -171,6 +171,45 @@ export interface WeeklyReport {
   review: ReviewRow[];
 }
 
+export interface LearningEvidence {
+  event_id: string;
+  item_id: number;
+  source_uri: string;
+  title: string;
+  content_hash: string;
+  dwell_ms: number;
+  captured_at: string;
+  metadata_json: string;
+  created_at: number;
+  status: string;
+  processed_title: string | null;
+  linked_concepts: number;
+}
+
+export interface RetrievalTrace {
+  mode: "graph_guided" | "vector_fallback" | string;
+  seed_concept: { id: number; name: string } | null;
+  expanded_concepts: {
+    id: number;
+    name: string;
+    role: "prerequisite" | "target" | "dependent" | string;
+    p_known: number;
+  }[];
+  graph_paths: string[];
+  evidence_reasons: {
+    label: string;
+    role: string;
+    concept: string | null;
+    reason: string;
+  }[];
+}
+
+export interface AskResponse {
+  answer: string;
+  sources: { label: string }[];
+  retrieval_trace: RetrievalTrace;
+}
+
 async function del(path: string): Promise<void> {
   const res = await fetch(`${API}${path}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`${path}: ${res.status}`);
@@ -201,8 +240,12 @@ export const learn = {
     getJSON<{ queue: ReviewRow[]; due: ReviewRow[]; threshold: number }>("/api/learn/review"),
   history: () => getJSON<{ points: HistoryPoint[] }>("/api/learn/history"),
   report: () => getJSON<WeeklyReport>("/api/learn/report/weekly"),
+  evidence: (limit = 8) =>
+    getJSON<{ evidence: LearningEvidence[] }>(`/api/learn/evidence?limit=${limit}`),
+  rebindEvidence: () =>
+    postJSON<{ ok: boolean; bound_sources: number }>("/api/learn/goal/rebind", {}),
   ask: (conceptId: number, question: string) =>
-    postJSON<{ answer: string; sources: { label: string }[] }>("/api/learn/ask", {
+    postJSON<AskResponse>("/api/learn/ask", {
       concept_id: conceptId,
       question,
     }),

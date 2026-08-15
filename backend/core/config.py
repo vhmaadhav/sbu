@@ -122,7 +122,7 @@ class Settings:
                 "TRUSTED_HOSTS must list explicit hostnames when APP_ENV=production"
             )
         return cls(
-            service_name="study-buddy-api",
+            service_name="axiom-trace-api",
             environment=environment,
             host=os.getenv("BACKEND_HOST", "0.0.0.0").strip(),
             port=_integer("BACKEND_PORT", 8010),

@@ -8,11 +8,10 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { MonoLabel } from "@/components/ui";
-import { learn } from "@/lib/learn";
+import { learn, type AskResponse } from "@/lib/learn";
 
-/** Ask the local assistant about the concept in front of you. Retrieval is
- *  scoped to this concept's bound chunks, so answers cite the same notes the
- *  question was written from. */
+/** Ask the local assistant about the concept in front of you. Retrieval expands
+ *  through weak prerequisites and dependents, then exposes its evidence trace. */
 export default function ConceptAsk({
   conceptId,
   conceptName,
@@ -21,7 +20,7 @@ export default function ConceptAsk({
   conceptName: string;
 }) {
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
+  const [result, setResult] = useState<AskResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,10 +29,9 @@ export default function ConceptAsk({
     if (!trimmed) return;
     setBusy(true);
     setError("");
-    setAnswer("");
+    setResult(null);
     try {
-      const result = await learn.ask(conceptId, trimmed);
-      setAnswer(result.answer);
+      setResult(await learn.ask(conceptId, trimmed));
     } catch {
       setError("The assistant is unavailable — check that LM Studio is running.");
     } finally {
@@ -99,23 +97,72 @@ export default function ConceptAsk({
         </div>
       ) : null}
 
-      {answer ? (
-        <div
-          className="reveal study-note"
-          style={{
-            marginTop: 14,
-            padding: "14px 16px",
-            border: "1px solid var(--line)",
-            background: "var(--panel2)",
-            fontSize: 13.5,
-          }}
-        >
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex]}
+      {result ? (
+        <div className="reveal" style={{ marginTop: 14 }}>
+          <div
+            className="study-note"
+            style={{
+              padding: "14px 16px",
+              border: "1px solid var(--line)",
+              background: "var(--panel2)",
+              fontSize: 13.5,
+            }}
           >
-            {normalizeMath(answer)}
-          </ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+            >
+              {normalizeMath(result.answer)}
+            </ReactMarkdown>
+          </div>
+          <details
+            style={{
+              border: "1px solid var(--line)",
+              borderTop: 0,
+              padding: "11px 14px",
+              color: "var(--dim)",
+            }}
+          >
+            <summary
+              style={{
+                cursor: "pointer",
+                fontFamily: "var(--font-jetbrains-mono), monospace",
+                fontSize: 10,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "var(--accent)",
+              }}
+            >
+              Why this answer?
+            </summary>
+            <div style={{ marginTop: 12, display: "grid", gap: 10, fontSize: 12 }}>
+              <div>
+                Retrieval mode: <strong>{result.retrieval_trace.mode.replaceAll("_", " ")}</strong>
+                {result.retrieval_trace.seed_concept
+                  ? ` · Seeded from ${result.retrieval_trace.seed_concept.name}`
+                  : ""}
+              </div>
+              {result.retrieval_trace.graph_paths.length ? (
+                <div>
+                  <MonoLabel size={8} dim>Knowledge paths</MonoLabel>
+                  <div style={{ marginTop: 5 }}>
+                    {result.retrieval_trace.graph_paths.join(" · ")}
+                  </div>
+                </div>
+              ) : null}
+              <div>
+                <MonoLabel size={8} dim>Selected evidence</MonoLabel>
+                <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
+                  {result.retrieval_trace.evidence_reasons.map((evidence, index) => (
+                    <div key={`${evidence.label}-${index}`}>
+                      <span style={{ color: "var(--text)" }}>{evidence.label}</span>
+                      {` — ${evidence.reason}`}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
       ) : null}
     </div>
