@@ -7,7 +7,7 @@ foreach ($name in @("backend", "web")) {
     if (-not (Test-Path -LiteralPath $pidFile)) { continue }
     $processId = Get-Content -LiteralPath $pidFile -ErrorAction SilentlyContinue
     if ($processId -and $processId -match '^\d+$') {
-        Stop-Process -Id ([int]$processId) -ErrorAction SilentlyContinue
+        & taskkill.exe /PID ([int]$processId) /T /F 2>$null | Out-Null
     }
     Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
 }

@@ -17,6 +17,15 @@ from study_buddy.logging import configure_logging
 logger = logging.getLogger(__name__)
 
 
+def shutdown_signals() -> tuple[int, ...]:
+    """Return the graceful-shutdown signals available on this platform."""
+    available = [signal.SIGTERM]
+    sighup = getattr(signal, "SIGHUP", None)
+    if sighup is not None:
+        available.append(sighup)
+    return tuple(available)
+
+
 @dataclass
 class ProcessSupervisor:
     """Own and cleanly terminate backend companion processes."""
@@ -94,7 +103,7 @@ def run() -> None:
         logging.shutdown()
         os._exit(128 + signum)
 
-    for received in (signal.SIGTERM, signal.SIGHUP):
+    for received in shutdown_signals():
         signal.signal(received, terminate)
 
     logger.info(

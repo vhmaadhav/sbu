@@ -1,7 +1,11 @@
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
+if sys.platform != "darwin":
+    raise unittest.SkipTest("the rumps menu-bar client is macOS-only")
 
 from buddy.menubar import BuddyApp
 
@@ -13,7 +17,6 @@ class MenubarScreenshotTests(unittest.TestCase):
 
             def capture(command):
                 output.write_bytes(b"png")
-                return None
 
             with (
                 patch("buddy.menubar._stamp", return_value=output),

@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from pathlib import Path
 
 from PIL import Image, ImageDraw
 
@@ -52,15 +53,16 @@ class DiagramValidationTests(unittest.TestCase):
         self.assertEqual(graph["nodes"][0]["label"], "Update RAG knowledge")
 
     def test_connector_threshold_ignores_faint_notebook_lines(self):
-        with tempfile.NamedTemporaryFile(suffix=".png") as image_file:
+        with tempfile.TemporaryDirectory() as directory:
+            image_file = Path(directory) / "notebook-lines.png"
             image = Image.new("L", (240, 160), 245)
             draw = ImageDraw.Draw(image)
             for y in range(20, 160, 20):
                 draw.line((0, y, 239, y), fill=205, width=1)
             draw.line((30, 80, 210, 80), fill=25, width=4)
-            image.save(image_file.name)
+            image.save(image_file)
 
-            details, _ = trace_connectors(image_file.name)
+            details, _ = trace_connectors(str(image_file))
 
         self.assertLess(details["threshold"], 205)
         self.assertLess(details["junction_pixels"], details["skeleton_pixels"])
