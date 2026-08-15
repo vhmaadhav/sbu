@@ -74,6 +74,12 @@ if (-not $SkipInstall) {
     }
 }
 
+$node = Require-Command "node" "Install Node.js 20 or newer."
+$nextCli = Join-Path $webRoot "node_modules\next\dist\bin\next"
+if (-not (Test-Path -LiteralPath $nextCli)) {
+    throw "Next.js is not installed. Run this launcher without -SkipInstall first."
+}
+
 $backend = $null
 $web = $null
 try {
@@ -83,7 +89,9 @@ try {
         -RedirectStandardOutput (Join-Path $runRoot "backend.out.log") `
         -RedirectStandardError (Join-Path $runRoot "backend.err.log")
 
-    $web = Start-Process -FilePath $webCommand.Path -ArgumentList @("run", "dev") `
+    # Start the JavaScript entry point through node.exe. Start-Process cannot
+    # reliably execute npm/pnpm .cmd wrappers directly on Windows.
+    $web = Start-Process -FilePath $node -ArgumentList @("node_modules\next\dist\bin\next", "dev") `
         -WorkingDirectory $webRoot -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $runRoot "web.out.log") `
         -RedirectStandardError (Join-Path $runRoot "web.err.log")
