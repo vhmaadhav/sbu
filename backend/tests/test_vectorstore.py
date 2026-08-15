@@ -1,6 +1,8 @@
+import tempfile
 import unittest
 from contextlib import nullcontext
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from core import vectorstore
@@ -66,6 +68,16 @@ class VectorStoreInitializationTests(unittest.TestCase):
             where="item_id = 12",
         )
         table.delete.assert_called_once_with("chunk_id IN (4, 9)")
+
+    def test_cross_platform_write_lock_can_be_acquired(self):
+        with tempfile.TemporaryDirectory() as directory:
+            lock_path = Path(directory) / ".write.lock"
+            with (
+                patch.object(vectorstore, "LANCEDB_DIR", Path(directory)),
+                patch.object(vectorstore, "_LOCK_PATH", lock_path),
+                vectorstore._write_lock(),
+            ):
+                self.assertTrue(lock_path.exists())
 
 
 if __name__ == "__main__":

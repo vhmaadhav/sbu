@@ -32,7 +32,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import AwareDatetime, BaseModel, Field, HttpUrl, model_validator
 
 from core import (
-    capture, concepts, db, flashcards, gaps, llm, mastery, note_pdf,
+    capture, concepts, db, flashcards, gaps, graph_rag, llm, mastery, note_pdf,
     notes as notes_module, planner, question_papers, quiz, rag, report, vectorstore,
 )
 from core.config import (
@@ -1546,6 +1546,18 @@ async def learn_gaps():
     return {"gaps": ranked, "summary": gaps.summary(goal["id"])}
 
 
+@app.get("/api/learn/evidence")
+def learn_evidence(limit: int = 20):
+    return {"evidence": db.list_capture_events(limit)}
+
+
+@app.post("/api/learn/goal/rebind")
+async def learn_rebind_sources():
+    goal = _require_ready_goal()
+    bound = await run_in_threadpool(concepts.refresh_sources, goal["id"])
+    return {"ok": True, "bound_sources": bound}
+
+
 @app.post("/api/learn/diagnostic")
 async def learn_diagnostic():
     goal = _require_ready_goal()
@@ -1635,12 +1647,11 @@ async def learn_ask(req: ConceptAsk):
     concept = concepts.get_concept(req.concept_id)
     if concept is None:
         raise HTTPException(404, "Concept not found")
-    chunks = concepts.source_chunks(req.concept_id, limit=8)
     try:
         result = await run_in_threadpool(
-            rag.answer_from_hits,
-            f"In the context of {concept['name']}: {question}",
-            chunks,
+            graph_rag.ask,
+            req.concept_id,
+            question,
         )
     except llm.LocalLLMUnavailable as error:
         raise HTTPException(503, str(error))

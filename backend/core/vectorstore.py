@@ -1,5 +1,5 @@
 """LanceDB chunk index: vector search with metadata filters."""
-import fcntl
+import os
 import threading
 from contextlib import contextmanager
 from datetime import timedelta
@@ -11,6 +11,11 @@ import pyarrow as pa
 
 from core.config import LANCEDB_DIR
 from core.embed import EMBED_DIM, embed
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 TABLE = "chunks"
 _WRITE_LOCK = threading.RLock()
@@ -34,11 +39,23 @@ def _write_lock():
     """Serialize LanceDB mutations across API, worker, and Telegram processes."""
     LANCEDB_DIR.mkdir(parents=True, exist_ok=True)
     with _WRITE_LOCK, Path(_LOCK_PATH).open("a+b") as lock_file:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        lock_file.seek(0, os.SEEK_END)
+        if lock_file.tell() == 0:
+            lock_file.write(b"\0")
+            lock_file.flush()
+        lock_file.seek(0)
+        if os.name == "nt":
+            msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
         try:
             yield
         finally:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            lock_file.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 @lru_cache(maxsize=1)

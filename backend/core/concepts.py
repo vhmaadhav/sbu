@@ -396,6 +396,11 @@ def bind_sources(goal_id: int) -> int:
     return bound
 
 
+def refresh_sources(goal_id: int) -> int:
+    """Attach newly indexed evidence without discarding existing safe bindings."""
+    return bind_sources(goal_id)
+
+
 # ── Reads ─────────────────────────────────────────────────────────────────
 
 def list_concepts(goal_id: int) -> list[dict]:
