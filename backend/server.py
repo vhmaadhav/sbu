@@ -14,6 +14,7 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Literal
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -28,10 +29,10 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel
+from pydantic import AwareDatetime, BaseModel, Field, HttpUrl, model_validator
 
 from core import (
-    concepts, db, flashcards, gaps, llm, mastery, note_pdf,
+    capture, concepts, db, flashcards, gaps, llm, mastery, note_pdf,
     notes as notes_module, planner, question_papers, quiz, rag, report, vectorstore,
 )
 from core.config import (
@@ -99,11 +100,36 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(settings.cors_origins),
+    allow_origin_regex=r"chrome-extension://[a-z]{32}",
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["X-Request-ID", "X-Process-Time-Ms"],
 )
+
+
+class CaptureEvent(BaseModel):
+    event_id: str = Field(min_length=1, max_length=128)
+    source_type: Literal["browser"]
+    source_uri: HttpUrl
+    title: str | None = Field(default=None, max_length=1000)
+    text: str = Field(min_length=1, max_length=1_000_000)
+    captured_at: AwareDatetime
+    dwell_ms: int = Field(ge=0)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def normalize_text(self) -> "CaptureEvent":
+        self.text = self.text.strip()
+        if not self.text:
+            raise ValueError("capture text is empty")
+        return self
+
+
+class CaptureBatch(BaseModel):
+    events: list[CaptureEvent] = Field(min_length=1, max_length=50)
+
+
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.trusted_hosts))
 
 
@@ -632,6 +658,26 @@ async def upload(
         queued.append({"id": item_id, "filename": filename, "size": len(clean_text)})
 
     return {"queued": len(queued), "items": queued, "capture_date": dated}
+
+
+@app.post("/api/captures", tags=["library"])
+def receive_browser_captures(batch: CaptureBatch):
+    """Accept the durable browser-extension batch into the normal ingest queue."""
+    results = []
+    for event in batch.events:
+        try:
+            results.append(
+                capture.ingest_browser_event(event.model_dump(mode="json"), FILES_DIR)
+            )
+        except Exception as error:
+            logger.exception(
+                "browser capture failed", extra={"event_id": event.event_id}
+            )
+            raise HTTPException(500, "local capture ingestion failed") from error
+    return {
+        "accepted_event_ids": [event.event_id for event in batch.events],
+        "results": results,
+    }
 
 
 class AskRequest(BaseModel):

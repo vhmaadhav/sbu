@@ -30,6 +30,19 @@ CREATE TABLE IF NOT EXISTS items (
     created_at REAL NOT NULL,
     processed_at REAL
 );
+CREATE TABLE IF NOT EXISTS capture_events (
+    event_id TEXT PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    source_uri TEXT NOT NULL,
+    title TEXT,
+    content_hash TEXT NOT NULL,
+    dwell_ms INTEGER NOT NULL CHECK(dwell_ms >= 0),
+    captured_at TEXT NOT NULL,
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    created_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_capture_events_created
+    ON capture_events(created_at DESC);
 CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY,
     item_id INTEGER NOT NULL REFERENCES items(id),
@@ -346,6 +359,89 @@ def add_item(filename: str, stored_path: str, kind: str,
             (filename, stored_path, kind, metadata_text, capture_date, time.time()),
         )
         return cur.lastrowid
+
+
+def add_browser_capture(
+    *,
+    event_id: str,
+    filename: str,
+    stored_path: str,
+    source_uri: str,
+    title: str | None,
+    content_hash: str,
+    dwell_ms: int,
+    captured_at: str,
+    metadata: dict,
+) -> tuple[int, bool]:
+    """Create one queued text item and its idempotent browser-capture ledger row."""
+    with conn() as c:
+        existing = c.execute(
+            "SELECT item_id FROM capture_events WHERE event_id=?", (event_id,)
+        ).fetchone()
+        if existing:
+            return int(existing["item_id"]), False
+
+        context = (
+            f"Browser reading: {title or 'Untitled page'}\n"
+            f"Source: {source_uri}\n"
+            f"Visible reading time: {dwell_ms} ms"
+        )
+        item_id = c.execute(
+            "INSERT INTO items "
+            "(filename, stored_path, kind, metadata_text, capture_date, created_at) "
+            "VALUES (?,?,?,?,?,?)",
+            (
+                filename,
+                stored_path,
+                "text",
+                context,
+                captured_at[:10],
+                time.time(),
+            ),
+        ).lastrowid
+        c.execute(
+            "INSERT INTO capture_events "
+            "(event_id, item_id, source_uri, title, content_hash, dwell_ms, "
+            " captured_at, metadata_json, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                event_id,
+                item_id,
+                source_uri,
+                title,
+                content_hash,
+                dwell_ms,
+                captured_at,
+                json.dumps(metadata, ensure_ascii=False, sort_keys=True),
+                time.time(),
+            ),
+        )
+        return int(item_id), True
+
+
+def get_capture_event(event_id: str) -> dict | None:
+    with conn() as c:
+        row = c.execute(
+            "SELECT capture_events.*, items.status FROM capture_events "
+            "JOIN items ON items.id=capture_events.item_id WHERE event_id=?",
+            (event_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def list_capture_events(limit: int = 20) -> list[dict]:
+    with conn() as c:
+        rows = c.execute(
+            "SELECT capture_events.*, items.status, items.title AS processed_title, "
+            "COUNT(DISTINCT concept_sources.concept_id) AS linked_concepts "
+            "FROM capture_events "
+            "JOIN items ON items.id=capture_events.item_id "
+            "LEFT JOIN chunks ON chunks.item_id=items.id "
+            "LEFT JOIN concept_sources ON concept_sources.chunk_id=chunks.id "
+            "GROUP BY capture_events.event_id "
+            "ORDER BY capture_events.created_at DESC LIMIT ?",
+            (max(1, min(limit, 100)),),
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def get_item(item_id: int):
