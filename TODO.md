@@ -54,7 +54,7 @@ This checklist converts the adopted T2-2 merge plan into verifiable repository w
 - [x] Run the complete backend test collection and classify platform-only failures.
 - [x] Exercise the one-command launcher against live ports 3000 and 8010.
 - [x] Audit the final diff for generated data, secrets, and personal paths.
-- [ ] Push the integration branch and open a draft pull request.
+- [x] Push the integration branch and open a draft pull request.
 
 ## Deliberately excluded from the T2-2 submission path
 
