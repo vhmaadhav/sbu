@@ -1,10 +1,21 @@
-"""LM Studio client (OpenAI-compatible) with tolerant JSON handling."""
+"""OpenAI-compatible chat client with tolerant JSON handling.
+
+Works against either a local LM Studio server or a hosted OpenAI-compatible
+gateway; both are configured through the same LMSTUDIO_* settings. Capability
+differences between the two are discovered at runtime and cached, so nothing
+here needs to know which one it is talking to.
+"""
 import json
+import logging
 import re
 
-from openai import OpenAI
+from openai import BadRequestError, OpenAI
 
-from core.config import LMSTUDIO_API_KEY, LMSTUDIO_BASE_URL, LMSTUDIO_MODEL, VISION_MODEL
+from core.config import (
+    LLM_REASONING_EFFORT, LMSTUDIO_API_KEY, LMSTUDIO_BASE_URL, LMSTUDIO_MODEL, VISION_MODEL,
+)
+
+logger = logging.getLogger(__name__)
 
 _client = OpenAI(base_url=LMSTUDIO_BASE_URL, api_key=LMSTUDIO_API_KEY)
 
@@ -15,9 +26,59 @@ _client = OpenAI(base_url=LMSTUDIO_BASE_URL, api_key=LMSTUDIO_API_KEY)
 # fail-closed behaviour in require_available is unchanged.
 REQUEST_RETRIES = 2
 
+# A reasoning model can spend its entire max_tokens budget thinking and return
+# an empty completion with finish_reason="length". Measured against
+# deepseek-v4-flash that happened on 4 of 4 long-form generations at 900
+# tokens and 2 of 4 at 1400, and raising the ceiling did not help — the run is
+# bimodal, so a fresh sample is the cure, not a bigger budget.
+EMPTY_COMPLETION_ATTEMPTS = 3
+
+# Capability probes. Not every OpenAI-compatible server accepts these, and the
+# ones that don't answer with a 400 rather than ignoring the field, so each is
+# tried once and disabled for the rest of the process if it is rejected.
+_supports_reasoning_effort = bool(LLM_REASONING_EFFORT)
+_supports_json_schema = True
+
 
 class LocalLLMUnavailable(RuntimeError):
     """The only configured LLM endpoint is unavailable or missing its model."""
+
+
+def _unsupported_parameter(error: BadRequestError) -> bool:
+    """A 400 that means "I don't know this field", not "your request is bad"."""
+    text = str(error).lower()
+    return any(
+        hint in text
+        for hint in ("unavailable now", "unsupported", "unrecognized", "unknown parameter",
+                     "not supported", "invalid_request_error")
+    )
+
+
+def _completion(*, model: str, messages: list, temperature: float, max_tokens: int,
+                timeout: float, effort: str | None = None, **extra):
+    """One chat completion, degrading gracefully if reasoning_effort is refused."""
+    global _supports_reasoning_effort
+    options = _client.with_options(timeout=timeout, max_retries=REQUEST_RETRIES)
+    if effort and _supports_reasoning_effort:
+        try:
+            return options.chat.completions.create(
+                model=model, messages=messages, temperature=temperature,
+                max_tokens=max_tokens, reasoning_effort=effort, **extra,
+            )
+        except BadRequestError as error:
+            if not _unsupported_parameter(error):
+                raise
+            logger.info("endpoint rejected reasoning_effort; continuing without it")
+            _supports_reasoning_effort = False
+    return options.chat.completions.create(
+        model=model, messages=messages, temperature=temperature,
+        max_tokens=max_tokens, **extra,
+    )
+
+
+def _clean(text: str | None) -> str:
+    """Drop the <think> block some models emit inline in the content field."""
+    return re.sub(r"<think>.*?</think>", "", text or "", flags=re.DOTALL).strip()
 
 
 def is_available() -> bool:
@@ -41,15 +102,36 @@ def require_available() -> None:
 def chat(system: str, user: str, temperature: float = 0.3, max_tokens: int = 2048,
          model: str | None = None, timeout: float = 60.0) -> str:
     require_available()
-    resp = _client.with_options(timeout=timeout, max_retries=REQUEST_RETRIES).chat.completions.create(
-        model=model or LMSTUDIO_MODEL,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        temperature=temperature,
-        max_tokens=max_tokens,
+    target = model or LMSTUDIO_MODEL
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+    # Escalate rather than just resample: a fresh sample usually lands in the
+    # short-reasoning mode, but a budget too small to hold any reasoning at all
+    # never will, so the ladder ends with reasoning switched off entirely.
+    for attempt, (budget, effort) in enumerate(
+        (
+            (max_tokens, LLM_REASONING_EFFORT),
+            (max_tokens * 2, LLM_REASONING_EFFORT),
+            (max_tokens * 2, "none"),
+        ),
+        start=1,
+    ):
+        resp = _completion(
+            model=target, messages=messages, temperature=temperature,
+            max_tokens=budget, timeout=timeout, effort=effort or None,
+        )
+        text = _clean(resp.choices[0].message.content)
+        if text:
+            return text
+        # An empty answer used to be returned as "", which silently produced
+        # blank study notes and blank audiobook scripts instead of an error.
+        logger.warning(
+            "empty completion from %s (finish_reason=%s, budget=%d, effort=%s), attempt %d/3",
+            target, resp.choices[0].finish_reason, budget, effort or "unset", attempt,
+        )
+    raise LocalLLMUnavailable(
+        f"{target!r} returned no content in 3 attempts at {LMSTUDIO_BASE_URL} — it spent "
+        f"every token budget reasoning. Set LLM_REASONING_EFFORT=none for this endpoint."
     )
-    text = resp.choices[0].message.content or ""
-    # strip <think> blocks some local models emit
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
 
 def chat_vision(prompt: str, images_b64: list[str], temperature: float = 0.0,
@@ -62,14 +144,21 @@ def chat_vision(prompt: str, images_b64: list[str], temperature: float = 0.0,
             "type": "image_url",
             "image_url": {"url": f"data:image/png;base64,{b64}"},
         })
-    resp = _client.with_options(timeout=90.0, max_retries=REQUEST_RETRIES).chat.completions.create(
-        model=model or VISION_MODEL,
-        messages=[{"role": "user", "content": content}],
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-    text = resp.choices[0].message.content or ""
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    target = model or VISION_MODEL
+    try:
+        resp = _completion(
+            model=target, messages=[{"role": "user", "content": content}],
+            temperature=temperature, max_tokens=max_tokens, timeout=90.0,
+            effort=LLM_REASONING_EFFORT or None,
+        )
+    except BadRequestError as error:
+        # A text-only model answers an image request with a bare 400 and no
+        # message, which surfaced as an unreadable traceback several layers up.
+        raise LocalLLMUnavailable(
+            f"{target!r} rejected image input at {LMSTUDIO_BASE_URL}. Set VISION_MODEL "
+            f"to a model that accepts images."
+        ) from error
+    return _clean(resp.choices[0].message.content)
 
 
 def _extract_json(text: str):
@@ -109,9 +198,50 @@ def chat_json_schema(
     model: str | None = None,
     timeout: float = 60.0,
 ) -> dict:
-    """Use LM Studio's JSON Schema constrained decoding for reliable JSON."""
+    """Constrained decoding when the endpoint supports it, tolerant parse when not.
+
+    LM Studio implements response_format=json_schema; hosted gateways may not,
+    and answer with a 400 ("This response_format type is unavailable now").
+    That used to abort question-paper generation outright, so the capability is
+    probed once and the prompt-and-parse path in chat_json takes over.
+    """
+    global _supports_json_schema
     require_available()
-    response = _client.with_options(timeout=timeout, max_retries=REQUEST_RETRIES).chat.completions.create(
+    if not _supports_json_schema:
+        return chat_json(_schema_prompt(system, schema), user, max_tokens=max_tokens,
+                         model=model, timeout=timeout)
+    try:
+        return _chat_json_schema_native(system, user, schema, name=name,
+                                        max_tokens=max_tokens, model=model, timeout=timeout)
+    except BadRequestError as error:
+        if not _unsupported_parameter(error):
+            raise
+        logger.info("endpoint rejected response_format=json_schema; using prompted JSON")
+        _supports_json_schema = False
+        return chat_json(_schema_prompt(system, schema), user, max_tokens=max_tokens,
+                         model=model, timeout=timeout)
+
+
+def _schema_prompt(system: str, schema: dict) -> str:
+    """Carry the schema in the prompt for endpoints that cannot enforce it."""
+    return (
+        f"{system}\n\nYour reply must be a single JSON object valid against this "
+        f"JSON Schema. Include every required property and no others:\n"
+        f"{json.dumps(schema, separators=(',', ':'))}"
+    )
+
+
+def _chat_json_schema_native(
+    system: str,
+    user: str,
+    schema: dict,
+    *,
+    name: str = "response",
+    max_tokens: int = 1024,
+    model: str | None = None,
+    timeout: float = 60.0,
+) -> dict:
+    response = _completion(
         model=model or LMSTUDIO_MODEL,
         messages=[
             {"role": "system", "content": system},
@@ -119,6 +249,8 @@ def chat_json_schema(
         ],
         temperature=0.1,
         max_tokens=max_tokens,
+        timeout=timeout,
+        effort=LLM_REASONING_EFFORT or None,
         response_format={
             "type": "json_schema",
             "json_schema": {
@@ -128,9 +260,7 @@ def chat_json_schema(
             },
         },
     )
-    raw = response.choices[0].message.content or ""
-    raw = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
-    result = _extract_json(raw)
+    result = _extract_json(_clean(response.choices[0].message.content))
     if not isinstance(result, dict):
         raise ValueError("Structured model response was not a JSON object")
     return result

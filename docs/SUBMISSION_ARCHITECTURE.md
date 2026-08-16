@@ -90,7 +90,15 @@ concept evidence is expanded during retrieval.
 ## Trust and privacy boundary
 
 - All required persistence is local: SQLite, source files, and LanceDB.
-- Generation targets a local OpenAI-compatible LM Studio endpoint by default.
+- Generation targets one configurable OpenAI-compatible endpoint. The default and
+  the design intent is a local LM Studio server, in which case nothing leaves the
+  machine. Any OpenAI-compatible gateway can be substituted; when one is, prompts
+  and captured page text are sent to it, while notes, recordings, and indexes
+  still stay local.
+- The boundary is derived, not asserted: `GET /api/system/provider` resolves the
+  configured hostname, and the Settings screen switches between "Private by
+  default" and "Partially private — sent to `<host>`" from that value. See
+  [MODEL_PROVIDER.md](MODEL_PROVIDER.md).
 - The browser extension accepts only explicit HTTP(S) pages, extracts visible
   content, enforces size limits, and posts only to the loopback API.
 - No cloud service is required for the T2-2 demonstration.

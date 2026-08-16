@@ -62,11 +62,16 @@ export default function FilesPage() {
     return getJSON<Item[]>("/api/items").then(setItems).catch(() => {});
   }, []);
 
+  // The queue only moves while something is pending or processing. Polling
+  // every 4s regardless kept the page (and the backend) busy indefinitely on
+  // a settled library, so idle drops to a slow keep-fresh tick.
+  const working = items.some((item) => item.status === "pending" || item.status === "processing");
+
   useEffect(() => {
     refresh();
-    const t = setInterval(refresh, 4000);
+    const t = setInterval(refresh, working ? 4000 : 30_000);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refresh, working]);
 
   useEffect(() => () => {
     if (timerRef.current !== null) window.clearInterval(timerRef.current);

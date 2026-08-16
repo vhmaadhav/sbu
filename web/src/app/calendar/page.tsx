@@ -91,12 +91,19 @@ export default function CalendarPage() {
     return () => window.clearTimeout(timer);
   }, [refresh]);
 
+  // Proposals only appear when background ingestion finds a date in a note, so
+  // a 3s poll was three orders of magnitude faster than the thing it watched.
+  // It also ran when the calendar service was unreachable, which meant a
+  // failing request every three seconds for as long as the tab stayed open.
+  const calendarReachable = status !== null;
+
   useEffect(() => {
+    if (!calendarReachable) return;
     const timer = window.setInterval(() => {
       getJSON<CalendarProposal[]>("/api/calendar/proposals").then(setProposals).catch(() => {});
-    }, 3000);
+    }, 20_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [calendarReachable]);
 
   async function applyPlan(plan: CalendarPlan) {
     const response = await fetch(`${API}/api/calendar/plans/${plan.id}/apply`, { method: "POST" });

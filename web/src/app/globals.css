@@ -157,7 +157,6 @@ a:hover { color: #99f6e4; }
 
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @keyframes screenIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-@keyframes blobDrift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(40px, -30px); } }
 .axscreen { animation: screenIn 0.4s cubic-bezier(0.2, 0.7, 0.2, 1); }
 @media (prefers-reduced-motion: reduce) {
   .axscreen, [data-blob] { animation: none !important; }

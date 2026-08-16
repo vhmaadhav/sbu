@@ -70,6 +70,10 @@ class Settings:
     lmstudio_api_key: str
     lmstudio_model: str
     vision_model: str
+    # "" sends no reasoning_effort at all, which is what a server that does not
+    # understand the field needs. Endpoints that reject it are also detected at
+    # runtime, so this only has to be set when a value must be forced.
+    llm_reasoning_effort: str
     reranker_enabled: bool
     reranker_model: str
     reranker_candidate_k: int
@@ -139,6 +143,7 @@ class Settings:
             lmstudio_api_key=os.getenv("LMSTUDIO_API_KEY", "lm-studio"),
             lmstudio_model=model,
             vision_model=os.getenv("VISION_MODEL", "qwen/qwen3-vl-4b").strip(),
+            llm_reasoning_effort=os.getenv("LLM_REASONING_EFFORT", "low").strip(),
             reranker_enabled=_boolean("RERANKER_ENABLED", True),
             reranker_model=os.getenv(
                 "RERANKER_MODEL",
@@ -257,6 +262,7 @@ LMSTUDIO_BASE_URL = settings.lmstudio_base_url
 LMSTUDIO_API_KEY = settings.lmstudio_api_key
 LMSTUDIO_MODEL = settings.lmstudio_model
 VISION_MODEL = settings.vision_model
+LLM_REASONING_EFFORT = settings.llm_reasoning_effort
 RERANKER_ENABLED = settings.reranker_enabled
 RERANKER_MODEL = settings.reranker_model
 RERANKER_CANDIDATE_K = settings.reranker_candidate_k

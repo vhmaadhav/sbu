@@ -100,7 +100,7 @@ export default function GapsPage() {
                   {gaps.length === 0
                     ? "Run a diagnostic to measure where you actually stand."
                     : foundations.length > 0
-                      ? `${foundations.length} of these are foundations holding up other concepts — they're listed first, and fixing them lifts everything above them.`
+                      ? `${foundations.length} of these are foundations holding up other concepts. Ranked by how early each one sits in the prerequisite chain, so fixing them in order lifts everything above them.`
                       : "Ranked by how much each one is holding back. Click any area to drill it on its own."}
                 </p>
               </div>

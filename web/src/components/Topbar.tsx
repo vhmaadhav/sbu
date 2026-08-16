@@ -30,22 +30,31 @@ export default function Topbar({ onMenu }: { onMenu: () => void }) {
   const [answer, setAnswer] = useState("");
   const [lastQ, setLastQ] = useState("");
 
+  // Reachability only. /api/health also probes the language-model endpoint,
+  // which is a ~1s upstream round trip — far too expensive to run from the
+  // header of every open tab. /api/health/live answers from the process.
   useEffect(() => {
     const check = () =>
-      getJSON<{ ok: boolean }>("/api/health")
+      getJSON<{ ok: boolean }>("/api/health/live")
         .then((r) => setOnline(r.ok))
         .catch(() => setOnline(false));
     check();
-    const timer = window.setInterval(check, 30_000);
+    const timer = window.setInterval(check, 60_000);
     return () => window.clearInterval(timer);
   }, []);
 
+  // The clock shows hours and minutes, so tick on the minute boundary rather
+  // than every second: the header is a backdrop-filter surface and each
+  // re-render repainted it 59 times for no visible change.
   useEffect(() => {
-    const tick = () =>
-      setClock(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+    let timer = 0;
+    const tick = () => {
+      const now = new Date();
+      setClock(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      timer = window.setTimeout(tick, 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds()));
+    };
     tick();
-    const timer = window.setInterval(tick, 1000);
-    return () => window.clearInterval(timer);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
