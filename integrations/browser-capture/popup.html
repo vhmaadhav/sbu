@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Axiom Trace capture settings</title>
+    <link rel="stylesheet" href="popup.css">
+    <script src="settings.js" defer></script>
+    <script src="popup.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <h1>Axiom Trace capture</h1>
+      <label class="switch-row">
+        <span>
+          <strong>Capture reading</strong>
+          <small>Pause this to stop all new browser captures.</small>
+        </span>
+        <input id="capture-enabled" type="checkbox" role="switch">
+      </label>
+
+      <label for="excluded-domains">Excluded sites</label>
+      <textarea
+        id="excluded-domains"
+        rows="8"
+        spellcheck="false"
+        placeholder="bank.example&#10;mail.example&#10;work.example"
+      ></textarea>
+      <p class="help">One hostname per line. Subdomains are excluded automatically. Add banking, medical, email, and work sites you do not want captured.</p>
+
+      <button id="save" type="button">Save settings</button>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+  </body>
+</html>

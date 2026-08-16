@@ -1,0 +1,41 @@
+# Core
+python-dotenv
+openai
+streamlit
+lancedb
+pyarrow
+sentence-transformers
+
+# Speech-to-text
+useful-moonshine-onnx
+silero-vad
+soundfile
+numpy
+Pillow
+
+# Documents & images
+pymupdf
+ocrmac; sys_platform == "darwin"
+reportlab==4.4.9
+# Handwriting is transcribed by the LM Studio vision model (see core/handwriting.py)
+
+# Text-to-speech
+kokoro>=0.9
+
+# Overlay buddy (macOS)
+rumps
+sounddevice
+pyobjc-framework-Cocoa
+
+# Web API
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Telegram client
+python-telegram-bot==22.8
+
+# Google Calendar
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib

@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Axiom Trace Reading Evidence",
+  "description": "Locally captures text that remains visible long enough to plausibly be read.",
+  "version": "0.5.0",
+  "minimum_chrome_version": "120",
+  "permissions": ["alarms", "storage"],
+  "host_permissions": [
+    "http://127.0.0.1:8010/*",
+    "http://localhost:8010/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Axiom Trace capture settings"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "exclude_matches": [
+        "http://127.0.0.1:8010/*",
+        "http://localhost:8010/*"
+      ],
+      "js": ["settings.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

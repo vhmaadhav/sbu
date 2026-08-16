@@ -1,0 +1,30 @@
+{
+  "frame_size": 64,
+  "moods": {
+    "idle": {
+      "frames": 4,
+      "fps": 4,
+      "file": "idle.png"
+    },
+    "walk": {
+      "frames": 4,
+      "fps": 10,
+      "file": "walk.png"
+    },
+    "concerned": {
+      "frames": 4,
+      "fps": 6,
+      "file": "concerned.png"
+    },
+    "sad": {
+      "frames": 4,
+      "fps": 3,
+      "file": "sad.png"
+    },
+    "alert": {
+      "frames": 4,
+      "fps": 8,
+      "file": "alert.png"
+    }
+  }
+}
