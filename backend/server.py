@@ -15,6 +15,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -250,6 +251,65 @@ def stats():
         "disk_used_gb": round((usage.total - usage.free) / 1e9, 1),
         "disk_total_gb": round(usage.total / 1e9, 1),
     }
+
+
+@app.get("/api/system/provider", tags=["system"], summary="Describe the chat endpoint")
+def system_provider():
+    """Where model calls actually go.
+
+    The settings screen hard-coded the label "LM Studio · local", which stayed
+    green while pointed at a hosted gateway — it reported the wrong provider and
+    claimed calls never left the machine. Both facts are derived here instead.
+    """
+    host = urlparse(settings.lmstudio_base_url).hostname or ""
+    local = host in {"localhost", "127.0.0.1", "::1", "0.0.0.0"} or host.endswith(".local")
+    return {
+        "base_url": settings.lmstudio_base_url,
+        "host": host,
+        "local": local,
+        "label": "LM Studio" if local else host,
+        "text_model": settings.lmstudio_model,
+        "vision_model": settings.vision_model,
+        "reasoning_effort": settings.llm_reasoning_effort or "unset",
+        "reachable": llm.is_available(),
+    }
+
+
+@app.get("/api/system/models", tags=["system"], summary="Report the configured pipeline")
+def system_models():
+    """What this install is actually configured to run.
+
+    The settings screen used to print a fixed list of model names that drifted
+    away from .env the moment anything was changed. These are the real values
+    the pipeline loads at startup.
+    """
+    return [
+        {
+            "label": "Speech to text",
+            "value": settings.stt_model,
+            "desc": "Lecture and voice-note transcription",
+        },
+        {
+            "label": "Embeddings",
+            "value": settings.embed_model,
+            "desc": "Semantic note search",
+        },
+        {
+            "label": "Text to speech",
+            "value": settings.kokoro_voice,
+            "desc": "Audiobook narration voice",
+        },
+        {
+            "label": "Reranker",
+            "value": settings.reranker_model if settings.reranker_enabled else "DISABLED",
+            "desc": "Cross-encoder evidence reranking",
+        },
+        {
+            "label": "Local storage",
+            "value": "SQLITE + LANCEDB",
+            "desc": f"Stored in {settings.data_dir.name}",
+        },
+    ]
 
 
 @app.get("/api/subjects")

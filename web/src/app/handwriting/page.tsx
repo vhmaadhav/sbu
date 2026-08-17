@@ -69,11 +69,16 @@ export default function HandwritingPage() {
     getJSON<HwPageDetail>(`/api/handwriting/pages/${id}`).then(setDetail).catch(() => {});
   }, []);
 
+  // Chase the list only while a page is still being recognized; once every
+  // page has settled there is nothing new to poll for.
+  const recognizing = pages.some((page) => page.status === "processing");
+
   useEffect(() => {
     refresh();
+    if (!recognizing) return;
     const t = setInterval(refresh, 3000);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refresh, recognizing]);
 
   function selectPage(id: number) {
     setSentToNotes(false);

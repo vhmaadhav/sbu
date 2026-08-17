@@ -29,7 +29,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         overflow: "hidden",
       }}
     >
-      {/* Ambient blobs */}
+      {/* Ambient glow. Deliberately static and unfiltered: every panel, the
+          sidebar and the topbar are backdrop-filter surfaces stacked above
+          this, so anything that moves back here forces the compositor to
+          re-blur all of their backdrops on every frame, forever — the whole
+          UI stayed busy while idle. A radial-gradient is already soft, so
+          dropping the 30px blur costs nothing visually and removes two
+          full-viewport filter passes. */}
       <div
         data-blob
         style={{
@@ -41,9 +47,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           borderRadius: "50%",
           background: "radial-gradient(circle, var(--accent), transparent 68%)",
           opacity: 0.16,
-          filter: "blur(30px)",
           pointerEvents: "none",
-          animation: "blobDrift 18s ease-in-out infinite",
           zIndex: 0,
         }}
       />
@@ -57,9 +61,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           height: 560,
           borderRadius: "50%",
           background: "radial-gradient(circle, var(--g2), transparent 68%)",
-          filter: "blur(30px)",
           pointerEvents: "none",
-          animation: "blobDrift 22s ease-in-out infinite reverse",
           zIndex: 0,
         }}
       />

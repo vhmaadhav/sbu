@@ -49,7 +49,9 @@ Chrome, Arc and Brave, the active tab. macOS asks once for permission to
 control each browser; without it the pet still works from the application name
 alone. Nothing is written to disk and nothing leaves the machine —
 classification and dialogue both run through local LM Studio, and the activity
-log is a 200-entry in-memory ring.
+log is a 200-entry in-memory ring. (Classification and dialogue go to whatever
+`LMSTUDIO_BASE_URL` points at; that claim holds only while it is a local
+endpoint — see [../docs/MODEL_PROVIDER.md](../docs/MODEL_PROVIDER.md).)
 
 Escalation, by continuous distraction: 90s it turns alert, 3 min it walks to
 the offending window and speaks, 6 min it names what is actually due, 10 min it
@@ -78,6 +80,13 @@ Download that model in LM Studio, enable the local server, and keep
 `/v1/chat/completions` endpoint with thinking disabled to obtain Qwen3's
 first-token yes/no relevance probabilities. If reranking is temporarily
 unavailable, the request safely retains the original vector-search order.
+
+**Reranking needs token logprobs.** Hosted gateways commonly do not return them,
+and scoring is impossible without them. Set `RERANKER_ENABLED=false` against such
+an endpoint — retrieval then keeps vector order, which the retrieval trace
+reports as its mode rather than silently claiming a rerank happened. The two
+reranker unit tests force the flag on so they exercise the ranking regardless of
+what the local `.env` deploys.
 
 The defaults can be adjusted in `.env`:
 
@@ -150,9 +159,16 @@ notes. Clients choose difficulty, duration, and counts for one-mark MCQs,
 three-mark short answers, and five-mark long answers. The backend calculates
 the total marks, gives every selected note a share of the model context, and
 generates at most five questions per model response to prevent long JSON
-completions from being truncated. LM Studio JSON Schema constrained decoding
-guarantees the response structure before application validation checks the
-exact question mix, MCQ options, answers, and duplicates.
+completions from being truncated. JSON Schema constrained decoding guarantees
+the response structure before application validation checks the exact question
+mix, MCQ options, answers, and duplicates.
+
+Constrained decoding is a capability, not a guarantee: LM Studio implements
+`response_format: json_schema`, while some gateways reject it with a 400.
+`core.llm.chat_json_schema` probes this once per process and falls back to
+carrying the schema in the prompt and parsing tolerantly, so question-paper
+generation works either way. Application-side validation is unchanged and
+remains the real check.
 
 Each paper and its answer key are persisted transactionally in
 `question_papers` and `question_paper_questions`. MCQs must have four distinct

@@ -20,19 +20,26 @@ export default function AudiobooksPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [picked, setPicked] = useState<number[]>([]);
 
+  // The note list only changes when material is ingested elsewhere, so it is
+  // loaded once instead of being re-fetched with every progress tick.
   const refresh = useCallback(() => {
     getJSON<Audiobook[]>("/api/audiobooks").then(setBooks).catch(() => {});
-    getJSON<NotePreview[]>("/api/notes?limit=50").then(setNotes).catch(() => {});
     getJSON<Job[]>("/api/audiobooks/jobs").then(setJobs).catch(() => {});
   }, []);
 
   useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 3000);
-    return () => clearInterval(t);
-  }, [refresh]);
+    getJSON<NotePreview[]>("/api/notes?limit=50").then(setNotes).catch(() => {});
+  }, []);
 
   const busy = jobs.some((j) => j.status === "processing");
+
+  // Only chase progress while something is actually synthesizing.
+  useEffect(() => {
+    refresh();
+    if (!busy) return;
+    const t = setInterval(refresh, 3000);
+    return () => clearInterval(t);
+  }, [refresh, busy]);
   const pendingJobs = jobs.filter((j) => j.status !== "done");
 
   async function generate() {

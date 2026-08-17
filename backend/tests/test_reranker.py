@@ -24,6 +24,12 @@ def _choice(index: int, yes: float, no: float):
 
 
 class RerankerTests(unittest.TestCase):
+    """rerank() short-circuits when RERANKER_ENABLED is off, so the two tests
+    that exercise the ranking itself force the flag on. Without that they only
+    passed on installs whose .env happened to enable the reranker, and failed
+    against any endpoint that cannot supply logprobs."""
+
+    @patch("core.reranker.RERANKER_ENABLED", True)
     @patch("core.reranker._score")
     def test_reranks_hits_by_normalized_yes_probability(self, score):
         hits = [
@@ -58,6 +64,7 @@ class RerankerTests(unittest.TestCase):
             request["extra_body"]["chat_template_kwargs"]["enable_thinking"]
         )
 
+    @patch("core.reranker.RERANKER_ENABLED", True)
     @patch("core.reranker._score")
     def test_preserves_vector_order_when_lm_studio_fails(self, score):
         hits = [

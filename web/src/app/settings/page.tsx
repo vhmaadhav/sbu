@@ -13,12 +13,22 @@ interface Health {
   version?: string;
 }
 
-const MODELS: { label: string; value: string; desc: string }[] = [
-  { label: "Speech to text", value: "MOONSHINE BASE", desc: "Lecture transcription" },
-  { label: "Embeddings", value: "MINILM L6 V2", desc: "Semantic note search" },
-  { label: "Text to speech", value: "KOKORO 82M", desc: "Audiobook generation" },
-  { label: "Local storage", value: "SQLITE + LANCEDB", desc: "Stored in ./data" },
-];
+interface ConfiguredModel {
+  label: string;
+  value: string;
+  desc: string;
+}
+
+interface Provider {
+  base_url: string;
+  host: string;
+  local: boolean;
+  label: string;
+  text_model: string;
+  vision_model: string;
+  reasoning_effort: string;
+  reachable: boolean;
+}
 
 function Row({ label, desc, control }: { label: string; desc: string; control: React.ReactNode }) {
   return (
@@ -82,6 +92,9 @@ export default function SettingsPage() {
   const { theme, accent, grid, dyslexic, setTheme, setAccent, setGrid, setDyslexic } = useTheme();
   const [health, setHealth] = useState<Health | null>(null);
   const [failed, setFailed] = useState(false);
+  const [models, setModels] = useState<ConfiguredModel[]>([]);
+  const [modelsFailed, setModelsFailed] = useState(false);
+  const [provider, setProvider] = useState<Provider | null>(null);
 
   useEffect(() => {
     getJSON<Health>("/api/health")
@@ -90,6 +103,13 @@ export default function SettingsPage() {
         setFailed(false);
       })
       .catch(() => setFailed(true));
+    getJSON<ConfiguredModel[]>("/api/system/models")
+      .then((result) => {
+        setModels(result);
+        setModelsFailed(false);
+      })
+      .catch(() => setModelsFailed(true));
+    getJSON<Provider>("/api/system/provider").then(setProvider).catch(() => setProvider(null));
   }, []);
 
   const apiValue = failed ? "OFFLINE" : health ? `ONLINE${health.version ? ` · V${health.version}` : ""}` : "CONNECTING";
@@ -196,8 +216,12 @@ export default function SettingsPage() {
           }
         />
         <Row
-          label="LM Studio"
-          desc="Local language model server"
+          label={provider ? `Model endpoint · ${provider.label}` : "Model endpoint"}
+          desc={
+            provider
+              ? `${provider.local ? "Local server" : "Remote gateway"} at ${provider.base_url} — ${provider.text_model} for text, ${provider.vision_model} for vision`
+              : "Language model server"
+          }
           control={
             <MonoLabel size={11} spacing="0.12em" style={{ color: llmColor, border: `1px solid ${llmColor}`, padding: "6px 12px", whiteSpace: "nowrap" }}>
               {llmValue}
@@ -206,26 +230,57 @@ export default function SettingsPage() {
         />
       </Group>
 
-      {/* Models — reference */}
-      <Group name="LOCAL MODELS">
-        {MODELS.map((m) => (
+      {/* Models — read back from the running backend's configuration */}
+      <Group name="CONFIGURED PIPELINE">
+        {models.length === 0 ? (
           <Row
-            key={m.label}
-            label={m.label}
-            desc={m.desc}
+            label="Pipeline configuration"
+            desc={
+              modelsFailed
+                ? "Could not read the backend configuration. Restart the backend and reload."
+                : "Reading configuration…"
+            }
             control={
-              <MonoLabel size={11} spacing="0.12em" style={{ color: "var(--accent)", border: "1px solid var(--line2)", padding: "6px 12px", whiteSpace: "nowrap" }}>
-                {m.value}
+              <MonoLabel size={11} spacing="0.12em" dim style={{ border: `1px solid ${modelsFailed ? "#f87171" : "var(--line2)"}`, color: modelsFailed ? "#f87171" : undefined, padding: "6px 12px", whiteSpace: "nowrap" }}>
+                {modelsFailed ? "UNAVAILABLE" : "…"}
               </MonoLabel>
             }
           />
-        ))}
+        ) : (
+          models.map((m) => (
+            <Row
+              key={m.label}
+              label={m.label}
+              desc={m.desc}
+              control={
+                <span title={m.value} style={{ display: "inline-block", maxWidth: 260, overflow: "hidden" }}>
+                  <MonoLabel size={11} spacing="0.12em" style={{ display: "block", color: "var(--accent)", border: "1px solid var(--line2)", padding: "6px 12px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {m.value.toUpperCase()}
+                  </MonoLabel>
+                </span>
+              }
+            />
+          ))
+        )}
       </Group>
 
-      <Panel accent style={{ padding: 22 }}>
-        <MonoLabel style={{ display: "block", marginBottom: 10, color: "var(--accent)" }}>PRIVATE BY DEFAULT</MonoLabel>
+      {/* This panel used to claim model calls never leave the machine, which is
+          only true when the endpoint is local. It now reflects the real one. */}
+      <Panel accent={provider?.local !== false} style={{ padding: 22, borderColor: provider?.local === false ? "#fbbf24" : undefined }}>
+        <MonoLabel style={{ display: "block", marginBottom: 10, color: provider?.local === false ? "#fbbf24" : "var(--accent)" }}>
+          {provider?.local === false ? "PARTIALLY PRIVATE" : "PRIVATE BY DEFAULT"}
+        </MonoLabel>
         <p style={{ margin: 0, fontSize: 13, color: "var(--dim)", lineHeight: 1.6 }}>
-          Notes, recordings, model calls, and search indexes stay on your local machine.
+          {provider?.local === false ? (
+            <>
+              Notes, recordings, and search indexes stay on your machine. Prompts and
+              captured page text <strong style={{ color: "var(--text)" }}>are sent to {provider.host}</strong> for
+              generation and vision. Point <code>LMSTUDIO_BASE_URL</code> at a local
+              server to keep everything on this machine.
+            </>
+          ) : (
+            "Notes, recordings, model calls, and search indexes stay on your local machine."
+          )}
         </p>
       </Panel>
     </section>

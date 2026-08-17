@@ -22,7 +22,24 @@ const GROUPS: { label: string; items: { href: string; label: string }[] }[] = [
     items: [
       { href: "/notes", label: "Notes" },
       { href: "/files", label: "Source library" },
+      { href: "/handwriting", label: "Handwriting" },
+      { href: "/video", label: "Video review" },
       { href: "/search", label: "Ask all evidence" },
+    ],
+  },
+  {
+    label: "Practice",
+    items: [
+      { href: "/flashcards", label: "Flashcards" },
+      { href: "/question-papers", label: "Question papers" },
+      { href: "/audiobooks", label: "Audiobooks" },
+    ],
+  },
+  {
+    label: "Plan",
+    items: [
+      { href: "/tasks", label: "Tasks" },
+      { href: "/calendar", label: "Calendar" },
       { href: "/", label: "System overview" },
     ],
   },
@@ -76,16 +93,17 @@ function NavRow({
 }
 
 // Flatten groups into a single 01..NN numbering computed before render.
-const NUMBERED = (() => {
-  let n = 0;
-  return GROUPS.map((group) => ({
-    label: group.label,
-    items: group.items.map((item) => {
-      n += 1;
-      return { ...item, num: String(n).padStart(2, "0") };
-    }),
-  }));
-})();
+// Settings is rendered separately in the footer but continues the same run,
+// so its number is derived here rather than written in by hand.
+let counter = 0;
+const NUMBERED = GROUPS.map((group) => ({
+  label: group.label,
+  items: group.items.map((item) => {
+    counter += 1;
+    return { ...item, num: String(counter).padStart(2, "0") };
+  }),
+}));
+const SETTINGS_NUM = String(counter + 1).padStart(2, "0");
 
 function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -148,7 +166,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
       {/* Footer: settings, theme toggle, user chip */}
       <div style={{ padding: "16px 18px", borderTop: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: 14 }}>
         <NavRow
-          num="09"
+          num={SETTINGS_NUM}
           label="Settings"
           href="/settings"
           active={isActive(pathname, "/settings")}

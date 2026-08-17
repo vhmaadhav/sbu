@@ -6,6 +6,13 @@ Axiom Trace is a local-first adaptive learning platform that learns from the
 student's notes and focused reading, builds a prerequisite graph, tracks concept
 mastery, and explains why each piece of evidence was selected for a generated answer.
 
+> **Model endpoint.** Everything except generation runs on this machine. The one
+> chat endpoint is configurable: a local LM Studio server keeps the whole system
+> offline, or any OpenAI-compatible gateway can serve it instead. This checkout
+> is currently wired to a hosted gateway, so prompts and captured page text leave
+> the machine — the Settings screen states which of the two is in effect. See
+> [docs/MODEL_PROVIDER.md](docs/MODEL_PROVIDER.md).
+
 ![Axiom Trace system architecture](docs/assets/axiom-trace-system-architecture.png)
 
 ## Why it fits T2-2
@@ -19,15 +26,23 @@ mastery, and explains why each piece of evidence was selected for a generated an
 - **Explainable:** answers return citations, graph paths, expanded concepts, and
   a human-readable reason for each selected source.
 - **Local-first:** SQLite, LanceDB, local files, and a local LM Studio endpoint are
-  sufficient for the full demo.
+  sufficient for the full demo — no hosted service is required by the design.
 
 ## Run on Windows
 
 Prerequisites:
 
 - Python 3.12 and [uv](https://docs.astral.sh/uv/)
-- LM Studio serving an OpenAI-compatible model at `http://localhost:1234/v1`
+- One OpenAI-compatible chat endpoint, either
+  - LM Studio serving a text model and a **vision-capable** model at
+    `http://localhost:1234/v1`, or
+  - a hosted gateway — set `LMSTUDIO_BASE_URL`, `LMSTUDIO_API_KEY`,
+    `LMSTUDIO_MODEL` and `VISION_MODEL` in `backend/.env`
 - pnpm, Bun, or npm
+
+`VISION_MODEL` must be a model that actually accepts image input. Several
+text-only models answer an image request with a bare HTTP 400 and no message;
+[docs/MODEL_PROVIDER.md](docs/MODEL_PROVIDER.md) lists what was measured to work.
 
 For the deterministic Computer Science demo:
 
@@ -92,12 +107,21 @@ boundary are in [docs/SUBMISSION_ARCHITECTURE.md](docs/SUBMISSION_ARCHITECTURE.m
 | `backend/server.py` | FastAPI contracts for capture and adaptive learning |
 | `web/src/app/learn` | Focused learning workflow |
 | `integrations/browser-capture` | Manifest V3 attention-aware capture adapter |
+| `backend/core/llm.py` | The one chat client: capability probing, reasoning-budget handling, tolerant JSON |
 | `backend/scripts/seed_axiom_trace_demo.py` | Repeatable local demo story |
+| `docs/MODEL_PROVIDER.md` | Which endpoints and models work, and the measurements behind that |
 | `docs` | Architecture, runbook, evaluation, and presentation image |
 
 ## Verify
 
-Backend focused suite:
+Backend suite (253 tests, no model endpoint required — every LLM call is mocked):
+
+```powershell
+cd backend
+uv run --frozen --python 3.12 python -m pytest -q tests/
+```
+
+Focused subset for the T2-2 claims:
 
 ```powershell
 cd backend
@@ -106,6 +130,17 @@ uv run --frozen --python 3.12 python -m pytest -q `
   tests/test_vectorstore.py tests/test_rag.py tests/test_gaps_planner.py `
   tests/test_quiz_concepts.py tests/test_mastery.py tests/test_server_api.py
 ```
+
+Live model endpoint (needs the backend running and the endpoint reachable):
+
+```powershell
+curl.exe -s http://127.0.0.1:8010/api/system/provider
+```
+
+That reports the resolved endpoint, both model names, and whether it answers.
+`vision_model` must be one that accepts image input;
+[docs/MODEL_PROVIDER.md](docs/MODEL_PROVIDER.md) records which models were
+measured to work and the two silent failure modes to watch for.
 
 Web interface:
 

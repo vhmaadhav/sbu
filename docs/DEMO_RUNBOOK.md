@@ -2,9 +2,22 @@
 
 ## Before presenting
 
-Install Python 3.12, `uv`, LM Studio, and one of pnpm, Bun, or npm. In LM Studio,
-load the model named in `backend/.env` or the default `qwen/qwen3-4b` and expose
-its OpenAI-compatible server at `http://localhost:1234/v1`.
+Install Python 3.12, `uv`, and one of pnpm, Bun, or npm.
+
+Then make one OpenAI-compatible chat endpoint reachable. Either load the models
+named in `backend/.env` into LM Studio and expose its server at
+`http://localhost:1234/v1`, or point `backend/.env` at a hosted gateway. Confirm
+whichever you chose before you present:
+
+```bash
+curl -s http://127.0.0.1:8010/api/system/provider
+```
+
+`reachable` must be `true`, and `vision_model` must name a model that accepts
+images — see [MODEL_PROVIDER.md](MODEL_PROVIDER.md). If you are demoing on a
+hosted gateway, know that the Settings screen will say "Partially private" and
+name the host; that is correct, and worth saying out loud rather than being
+asked about.
 
 From the repository root:
 
@@ -49,8 +62,14 @@ Learning Evidence and become eligible for concept binding after ingestion.
 
 If internet access is poor, use the seeded local story; it needs no external
 web page. If the vector index is unavailable, the graph-bound evidence path still
-works and reports its retrieval mode. If LM Studio is unavailable, demonstrate
-the graph, evidence feed, and tests, but do not claim a live generated answer.
+works and reports its retrieval mode. If the model endpoint is unavailable,
+demonstrate the graph, evidence feed, and tests, but do not claim a live
+generated answer — the Settings screen shows the endpoint state, and the
+backend fails closed rather than substituting a heuristic answer.
+
+Note that a hosted gateway makes generation dependent on the venue's network. If
+that is a risk, configure a local LM Studio endpoint before the session; the
+whole flow works offline that way.
 
 ## Stop
 

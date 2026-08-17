@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getJSON, type Stats, type Task, type Deck } from "@/lib/api";
+import Link from "next/link";
+import { getJSON, timeAgo, type ActivityEvent, type Stats, type Task, type Deck } from "@/lib/api";
 import { Panel, MonoLabel, StatTile, SectionHeader, GlowButton } from "@/components/ui";
 import FocusTimer from "@/components/dashboard/FocusTimer";
 
@@ -22,11 +23,13 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [decks, setDecks] = useState<Deck[]>([]);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
 
   useEffect(() => {
     getJSON<Stats>("/api/stats").then(setStats).catch(() => {});
     getJSON<Task[]>("/api/tasks").then(setTasks).catch(() => {});
     getJSON<Deck[]>("/api/flashcards").then(setDecks).catch(() => {});
+    getJSON<ActivityEvent[]>("/api/activity?limit=8").then(setActivity).catch(() => {});
   }, []);
 
   const openTasks = tasks.filter((t) => !t.done);
@@ -80,7 +83,7 @@ export default function DashboardPage() {
             title="Today's Plan"
             action={
               <MonoLabel size={10} spacing="0.14em" style={{ color: "var(--accent)" }}>
-                <a href="/tasks">ALL TASKS →</a>
+                <Link href="/tasks">ALL TASKS →</Link>
               </MonoLabel>
             }
           />
@@ -125,6 +128,54 @@ export default function DashboardPage() {
                       {t.due}
                     </MonoLabel>
                   ) : null}
+                </div>
+              ))
+            )}
+          </div>
+
+          <SectionHeader
+            title="Recent activity"
+            action={
+              <MonoLabel size={10} spacing="0.14em" style={{ color: "var(--accent)" }}>
+                <Link href="/files">LIBRARY →</Link>
+              </MonoLabel>
+            }
+          />
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {activity.length === 0 ? (
+              <div style={{ padding: "22px", fontSize: 14, color: "var(--dim)" }}>
+                Nothing captured yet. Upload material on the Library screen.
+              </div>
+            ) : (
+              activity.map((event) => (
+                <div
+                  key={`${event.type}-${event.at}-${event.label}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    padding: "13px 22px",
+                    borderBottom: "1px solid var(--line)",
+                  }}
+                >
+                  <MonoLabel size={9} spacing="0.14em" style={{ color: "var(--accent)", width: 44, flexShrink: 0 }}>
+                    {event.type.toUpperCase()}
+                  </MonoLabel>
+                  <span
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      fontSize: 13.5,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {event.label}
+                  </span>
+                  <MonoLabel size={10} spacing="0.1em" dim style={{ flexShrink: 0 }}>
+                    {timeAgo(event.at)}
+                  </MonoLabel>
                 </div>
               ))
             )}
